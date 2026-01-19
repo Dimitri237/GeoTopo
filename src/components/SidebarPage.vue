@@ -8,6 +8,7 @@
 
   <!-- Sidebar -->
   <nav class="sidebar" :class="{ open }">
+    <h3><img style="width: 200px;" src="../assets/logGT.png" alt="" sizes="" srcset=""></h3>
     <h3><router-link @click="open = false" to="/dashboard">📊 Dashboard</router-link></h3>
     <h3><router-link @click="open = false" to="/products">🛒 Produits</router-link></h3>
     <h3><router-link @click="open = false" to="/clients">📥 Clients</router-link></h3>
