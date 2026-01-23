@@ -1,20 +1,35 @@
 <template>
   <div class="login-page">
-  <div class="card login-card">
-    <!-- <h2>🔐 WS Connexion</h2> -->
-     <img class="logo" src="../assets/logGT.png" alt="">
-    <p class="subtitle">Accédez à votre espace de gestion</p>
+    <div class="card login-card">
+      <img class="logo" src="../assets/logGT.png" alt="Logo" />
 
-    <input v-model="email" type="email" placeholder="📧 Adresse email" />
-    <input v-model="password" type="password" placeholder="🔑 Mot de passe" />
+      <p class="subtitle">Accédez à votre espace de gestion</p>
 
-    <button class="btn primary" @click="login" :disabled="loading">
-      <span class="loading-indicator" v-if="loading"></span>
-      <span v-else>Connexion</span>
-    </button>
+      <!-- MESSAGE ERREUR -->
+      <div v-if="error" class="error-box">
+        {{ error }}
+      </div>
+
+      <input
+        v-model.trim="email"
+        type="email"
+        placeholder="📧 Adresse email"
+        :disabled="loading"
+      />
+
+      <input
+        v-model="password"
+        type="password"
+        placeholder="🔑 Mot de passe"
+        :disabled="loading"
+      />
+
+      <button class="btn primary" @click="login" :disabled="loading">
+        <span class="loading-indicator" v-if="loading"></span>
+        <span v-else>Connexion</span>
+      </button>
+    </div>
   </div>
-</div>
-
 </template>
 
 
@@ -24,19 +39,62 @@ import { auth } from "../firebase"
 
 export default {
   data() {
-    return { email: "", password: "", loading: false }
+    return {
+      email: "",
+      password: "",
+      loading: false,
+      error: null
+    }
   },
+
   methods: {
     async login() {
-    this.loading = true;
-      await signInWithEmailAndPassword(auth, this.email, this.password)
-       this.loading = false;
-      this.$router.push("/dashboard")
+      this.error = null
+
+      if (!this.email || !this.password) {
+        this.error = "Veuillez renseigner l’email et le mot de passe."
+        return
+      }
+
+      this.loading = true
+
+      try {
+        await signInWithEmailAndPassword(auth, this.email, this.password)
+        this.$router.push("/dashboard")
+      } catch (err) {
+        console.error(err)
+
+        switch (err.code) {
+          case "auth/user-not-found":
+            this.error = "Utilisateur introuvable."
+            break
+
+          case "auth/wrong-password":
+            this.error = "Mot de passe incorrect."
+            break
+
+          case "auth/invalid-email":
+            this.error = "Adresse email invalide."
+            break
+
+          case "auth/network-request-failed":
+            this.error = "Problème de connexion internet."
+            break
+
+          case "auth/too-many-requests":
+            this.error = "Trop de tentatives. Réessayez plus tard."
+            break
+
+          default:
+            this.error = "Erreur de connexion. Veuillez réessayer."
+        }
+      } finally {
+        this.loading = false
+      }
     }
   }
 }
 </script>
-
 <style scoped>
 /* ===== PAGE ===== */
 .login-page {
@@ -59,26 +117,36 @@ export default {
   text-align: center;
 }
 
-/* ===== TITRES ===== */
+/* ===== LOGO ===== */
 .logo {
   width: 150px;
+  margin-bottom: 12px;
 }
 
 .subtitle {
   font-size: 0.9rem;
   color: #666;
-  margin-bottom: 24px;
+  margin-bottom: 18px;
+}
+
+/* ===== ERREUR ===== */
+.error-box {
+  background: #fee2e2;
+  color: #b91c1c;
+  padding: 10px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  margin-bottom: 14px;
 }
 
 /* ===== INPUTS ===== */
 input {
   width: 100%;
   margin-bottom: 14px;
-  padding: 10px 0;
+  padding: 10px 0px;
   border-radius: 10px;
   border: 1px solid #ddd;
   font-size: 0.95rem;
-  transition: border 0.2s, box-shadow 0.2s;
 }
 
 input:focus {
@@ -96,7 +164,6 @@ input:focus {
   font-weight: bold;
   cursor: pointer;
   font-size: 1rem;
-  transition: transform 0.15s, box-shadow 0.15s;
 }
 
 .primary {
@@ -104,16 +171,12 @@ input:focus {
   color: white;
 }
 
-.btn:active {
-  transform: scale(0.98);
+.btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 /* ===== LOADING ===== */
-.loading-indicator {
-  display: flex;
-  justify-content: center;
-}
-
 .loading-indicator::after {
   content: "";
   width: 22px;
@@ -123,18 +186,11 @@ input:focus {
   border-top-color: rgb(252, 146, 48);
   border-bottom-color: rgb(252, 146, 48);
   animation: spin 1s linear infinite;
+  display: inline-block;
 }
 
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
-
-/* ===== GRAND ÉCRAN ===== */
-@media (min-width: 768px) {
-  .login-card {
-    padding: 32px;
-  }
-}
-
 </style>
 

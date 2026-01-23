@@ -7,32 +7,21 @@
     </div>
 
     <!-- ================= JOURNÉES ================= -->
-    <div
-      v-for="(day, date) in grouped"
-      :key="date"
-      class="day-card"
-    >
+    <div v-for="(day, date) in grouped" :key="date" class="day-card">
       <div class="day-header">
         <h3>📅 {{ formatDate(date) }}</h3>
         <strong>{{ day.total }} FCFA</strong>
       </div>
 
       <!-- ================= OPERATIONS ================= -->
-      <div
-        v-for="op in day.operations"
-        :key="op.id"
-        class="op-row"
-      >
+      <div v-for="op in day.operations" :key="op.id" class="op-row">
         <div>
           <strong>{{ op.clientName }}</strong>
           <small>{{ op.total }} FCFA</small>
         </div>
 
-        <span
-          class="badge"
-          :class="op.paymentStatus"
-        >
-          {{ op.paymentStatus }}
+        <span class="badge" :class="op.paymentStatus">
+          {{ labelStatus(op.paymentStatus) }}
         </span>
       </div>
 
@@ -41,12 +30,20 @@
         <span>✔ Soldé : {{ day.solded }} FCFA</span>
         <span>❌ Dette : {{ day.debt }} FCFA</span>
       </div>
+
+      <!-- ================= EXPORT ================= -->
+      <button class="btn export" @click="exportPDF(date, day)">
+        📄 Export PDF
+      </button>
     </div>
   </div>
 </template>
+
 <script>
 import { db } from "../firebase"
 import { collection, onSnapshot } from "firebase/firestore"
+import logo from "@/assets/logGT.png"
+import jsPDF from "jspdf"
 
 export default {
   data() {
@@ -69,16 +66,16 @@ export default {
         if (!map[dateKey]) {
           map[dateKey] = {
             operations: [],
-            total: 0,
+            total: 0,   // encaissé réel
             solded: 0,
             debt: 0
           }
         }
 
         map[dateKey].operations.push(r)
-        map[dateKey].total += r.total
 
         if (r.paymentStatus === "soldé") {
+          map[dateKey].total += r.total
           map[dateKey].solded += r.total
         }
 
@@ -87,7 +84,6 @@ export default {
         }
       })
 
-      // Trier par date décroissante
       return Object.fromEntries(
         Object.entries(map).sort(
           (a, b) => new Date(b[0]) - new Date(a[0])
@@ -104,7 +100,94 @@ export default {
         month: "long",
         year: "numeric"
       })
-    }
+    },
+
+    labelStatus(s) {
+      if (s === "soldé") return "Soldé"
+      if (s === "dette") return "Dette"
+      return "En attente"
+    },
+
+   exportPDF(date, day) {
+  const pdf = new jsPDF("p", "mm", "a4")
+  const pageWidth = pdf.internal.pageSize.getWidth()
+  let y = 20
+
+  const img = new Image()
+  img.src = logo
+
+  img.onload = () => {
+    /* ============ LOGO ============ */
+    pdf.addImage(img, "PNG", pageWidth / 2 - 20, y, 40, 20)
+    y += 30
+
+    /* ============ TITRE ============ */
+    pdf.setFont("helvetica", "bold")
+    pdf.setFontSize(18)
+    pdf.text("COMPTABILITÉ JOURNALIÈRE", pageWidth / 2, y, { align: "center" })
+    y += 10
+
+    pdf.setFont("helvetica", "normal")
+    pdf.setFontSize(11)
+    pdf.text(`Date : ${this.formatDate(date)}`, pageWidth / 2, y, { align: "center" })
+    y += 12
+
+    pdf.setDrawColor(200)
+    pdf.line(14, y, pageWidth - 14, y)
+    y += 10
+
+    /* ============ TABLE HEADER ============ */
+    pdf.setFont("helvetica", "bold")
+    pdf.text("Client", 16, y)
+    pdf.text("Montant", 120, y)
+    pdf.text("Statut", 160, y)
+    y += 6
+
+    pdf.setDrawColor(230)
+    pdf.line(14, y, pageWidth - 14, y)
+    y += 6
+
+    /* ============ LIGNES ============ */
+    pdf.setFont("helvetica", "normal")
+    day.operations.forEach(op => {
+      if (y > 270) {
+        pdf.addPage()
+        y = 20
+      }
+
+      pdf.text(op.clientName, 16, y)
+      pdf.text(`${op.total} FCFA`, 120, y)
+      pdf.text(this.labelStatus(op.paymentStatus), 160, y)
+      y += 7
+    })
+
+    /* ============ TOTAUX ============ */
+    y += 8
+    pdf.setDrawColor(200)
+    pdf.line(14, y, pageWidth - 14, y)
+    y += 8
+
+    pdf.setFont("helvetica", "bold")
+    pdf.setFontSize(12)
+    pdf.text(`Total encaissé : ${day.solded} FCFA`, 16, y)
+    y += 7
+    pdf.text(`Total dette : ${day.debt} FCFA`, 16, y)
+
+    /* ============ FOOTER ============ */
+    pdf.setFontSize(9)
+    pdf.setFont("helvetica", "normal")
+    pdf.text(
+      "GEOTOPO • Document comptable officiel",
+      pageWidth / 2,
+      290,
+      { align: "center" }
+    )
+
+    pdf.save(`comptabilite-${date}.pdf`)
+  }
+}
+
+
   },
 
   mounted() {
@@ -117,6 +200,8 @@ export default {
   }
 }
 </script>
+
+
 <style scoped>
 .page {
   max-width: 900px;
@@ -134,7 +219,7 @@ export default {
   border-radius: 16px;
   padding: 14px;
   margin-bottom: 16px;
-  box-shadow: 0 4px 10px rgba(0,0,0,.07);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, .07);
 }
 
 .day-header {
@@ -181,9 +266,20 @@ export default {
   color: white;
 }
 
-.badge.NonSoldé {
+.badge.non_soldé {
   background: #facc15;
   color: #333;
+}
+
+.btn.export {
+  margin-top: 12px;
+  width: 100%;
+  padding: 8px;
+  border-radius: 10px;
+  background: #2563eb;
+  color: white;
+  border: none;
+  cursor: pointer;
 }
 
 .empty {

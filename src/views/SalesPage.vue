@@ -19,8 +19,7 @@
       </select>
 
       <button class="btn primary" @click="addToCart" :disabled="loading">
-        <span v-if="loading" class="loading-indicator"></span>
-        <span v-else>Enregistrer</span>
+        Enregistrer
       </button>
     </div>
 
@@ -46,7 +45,18 @@
         Valider location
       </button>
     </div>
-    
+
+    <!-- FILTRE -->
+    <div class="card">
+      <h3>Filtrer les locations</h3>
+      <select v-model="statusFilter">
+        <option value="all">📋 Toutes</option>
+        <option value="reserve">📦 Réservées</option>
+        <option value="sortie">🚚 Sorties</option>
+        <option value="clos">✅ Rentrées</option>
+      </select>
+    </div>
+
     <!-- HISTORIQUE -->
     <div class="card">
       <h3>Historique des locations</h3>
@@ -56,43 +66,32 @@
           <strong>{{ r.clientName }}</strong>
           <div class="meta">
             {{ formatDate(r.createdAt) }}
-            <div>
-              <span v-if="r.paymentStatus === 'soldé'" class="badge paid">🟢 Soldé</span>
-              <span v-else-if="r.paymentStatus === 'NonSoldé'" class="badge pending">🟡 Non soldé</span>
-              <span v-else class="badge debt">🔴 Dette</span>
 
-            </div>
+            <span v-if="r.paymentStatus === 'soldé'" class="badge paid">🟢 Soldé</span>
+
+            <span v-else-if="r.paymentStatus === 'non_soldé'" class="badge pending">🟡 Non soldé</span>
+
+            <span v-else class="badge debt">🔴 Dette</span>
+
             <span v-if="r.status === 'reserve'" class="badge pending">📦 Réservé</span>
             <span v-else-if="r.status === 'sortie'" class="badge debt">🚚 Sortie</span>
-            <span v-else class="badge paid">✅ Clôturé</span>
+            <span v-else class="badge paid">✅ Rentré</span>
           </div>
         </div>
 
         <div class="actions">
-          <button v-if="r.status === 'reserve'" class="btn primary" @click="markAsOut(r)">
-            Sortir
-          </button>
+          <button v-if="r.status === 'reserve'" class="btn primary" @click="markAsOut(r)">Sortir</button>
+          <button v-if="r.status === 'sortie'" class="btn primary" @click="markAsReturned(r)">Retour</button>
 
-          <button v-if="r.status === 'sortie'" class="btn primary" @click="markAsReturned(r)">
-            Retour
-          </button>
+          <button v-if="r.paymentStatus !== 'soldé'" class="btn primary" @click="markAsPaid(r)">Encaisser</button>
 
-          <div>
-            <button v-if="r.paymentStatus !== 'soldé'" class="btn primary" @click="markAsPaid(r)">
-              Encaisser
-            </button>
-
-            <button v-if="r.paymentStatus === 'NonSoldé'" class="btn danger" @click="markAsDebt(r)">
-              Passer en dette
-            </button>
-
-          </div>
+          <button v-if="r.paymentStatus === 'non_soldé'" class="btn danger" @click="markAsDebt(r)">Dette</button>
 
           <button class="btn" @click="openModal(r)">Détails</button>
         </div>
       </div>
 
-      <div class="pagination" v-if="rentals.length > pageSize">
+      <div class="pagination" v-if="filteredRentals.length > pageSize">
         <button @click="prevPage" :disabled="currentPage === 1">⬅️</button>
         <span>Page {{ currentPage }} / {{ totalPages }}</span>
         <button @click="nextPage" :disabled="currentPage === totalPages">➡️</button>
@@ -110,25 +109,66 @@
         <hr />
 
         <div v-for="i in modalRental.items" :key="i.productId">
-          • {{ i.productName }} —
-          {{ i.isFree ? "GRATUIT" : i.price + " FCFA" }} —
-          <strong>{{ i.status }}</strong>
+          {{ i.productName }} — {{ i.isFree ? "GRATUIT" : i.price + " FCFA" }}
         </div>
 
         <hr />
         <strong>Total : {{ modalRental.total }} FCFA</strong>
 
+        <button class="btn primary full" @click="generateReceipt(modalRental, 58)">
+          🧾 Ticket 58mm
+        </button>
+
+        <button class="btn full" @click="generateReceipt(modalRental, 80)">
+          🖨️ Ticket 80mm
+        </button>
+
         <button class="btn primary full" @click="closeModal">Fermer</button>
       </div>
     </div>
+
+    <!-- REÇU THERMIQUE (HORS UI) -->
+    <div v-if="modalRental" ref="receipt" class="thermal-receipt" :style="{ width: receiptWidth + 'px' }">
+      <div class="center">
+        <img src="../assets/logGT.png" class="logo" />
+        <!-- <h3>WS AUTO LOCATION</h3> -->
+        <small>Location de matériel</small>
+      </div>
+
+      <hr />
+
+      <p><strong>Client :</strong> {{ modalRental.clientName }}</p>
+      <p><strong>Date :</strong> {{ formatDate(modalRental.createdAt) }}</p>
+
+      <hr />
+
+      <div v-for="i in modalRental.items" :key="i.productId" class="item">
+        <span>{{ i.productName }}</span>
+        <span>{{ i.isFree ? 0 : i.price }} FCFA</span>
+      </div>
+
+      <hr />
+      <div class="total">TOTAL : {{ modalRental.total }} FCFA</div>
+
+      <hr />
+
+      <div class="signature">
+        <p>GEOTOPO & PARTNERS</p>
+        <img src="/signature.png" class="sign-img" />
+      </div>
+
+      <hr />
+
+      <p class="center footer">
+        Merci pour votre confiance 🙏<br />
+        📞 +237 6XX XXX XXX
+      </p>
+    </div>
   </div>
 </template>
-
-
-
-
 <script>
 import { db } from "../firebase"
+import html2canvas from "html2canvas"
 import {
   collection,
   getDocs,
@@ -141,6 +181,7 @@ import {
 export default {
   data() {
     return {
+      receiptWidth: 220,
       clients: [],
       products: [],
       rentals: [],
@@ -149,6 +190,7 @@ export default {
       selectedProductId: "",
       loading: false,
       modalRental: null,
+      statusFilter: "all",
       currentPage: 1,
       pageSize: 5
     }
@@ -158,16 +200,42 @@ export default {
     rentalTotal() {
       return this.cart.reduce((s, i) => s + (i.isFree ? 0 : i.price), 0)
     },
+    filteredRentals() {
+      if (this.statusFilter === "all") return this.rentals
+      return this.rentals.filter(r => r.status === this.statusFilter)
+    },
     totalPages() {
-      return Math.ceil(this.rentals.length / this.pageSize)
+      return Math.ceil(this.filteredRentals.length / this.pageSize)
     },
     paginatedRentals() {
       const start = (this.currentPage - 1) * this.pageSize
-      return this.rentals.slice(start, start + this.pageSize)
+      return this.filteredRentals.slice(start, start + this.pageSize)
+    }
+  },
+
+  watch: {
+    statusFilter() {
+      this.currentPage = 1
     }
   },
 
   methods: {
+    async generateReceipt(rental, size = 58) {
+      this.receiptWidth = size === 80 ? 300 : 220
+      this.modalRental = rental
+      await this.$nextTick()
+
+      const canvas = await html2canvas(this.$refs.receipt, {
+        scale: 2,
+        backgroundColor: "#fff"
+      })
+
+      const link = document.createElement("a")
+      link.download = `recu-${rental.clientName}.png`
+      link.href = canvas.toDataURL("image/png")
+      link.click()
+    },
+
     async load() {
       const c = await getDocs(collection(db, "clients"))
       this.clients = c.docs.map(d => ({ id: d.id, ...d.data() }))
@@ -186,11 +254,7 @@ export default {
     },
 
     addToCart() {
-      if (!this.selectedClientId) {
-        alert("Sélectionnez un client")
-        return
-      }
-
+      if (!this.selectedClientId) return alert("Sélectionnez un client")
       const p = this.products.find(x => x.id === this.selectedProductId)
       if (!p || p.status !== "disponible") return
       if (this.cart.some(i => i.productId === p.id)) return
@@ -199,10 +263,8 @@ export default {
         productId: p.id,
         productName: p.name,
         price: p.price,
-        isFree: false,
-        status: "reserve"
+        isFree: false
       })
-
       this.selectedProductId = ""
     },
 
@@ -216,22 +278,47 @@ export default {
 
       try {
         await runTransaction(db, async (t) => {
-          let total = 0
-          const items = []
+
+          /* =====================
+             1️⃣ LECTURES D’ABORD
+          ====================== */
+          const productSnaps = []
 
           for (const i of this.cart) {
             const pRef = doc(db, "products", i.productId)
-            const pSnap = await t.get(pRef)
+            const snap = await t.get(pRef)
 
-            if (!pSnap.exists() || pSnap.data().status !== "disponible") {
-              throw "Produit indisponible"
+            if (!snap.exists() || snap.data().status !== "disponible") {
+              throw new Error("Produit indisponible")
             }
 
-            const price = pSnap.data().price
+            productSnaps.push({ ref: pRef, snap })
+          }
+
+          /* =====================
+             2️⃣ CALCUL & ITEMS
+          ====================== */
+          let total = 0
+          const items = []
+
+          for (const { snap } of productSnaps) {
+            const price = snap.data().price
             total += price
 
-            items.push({ ...i, price, status: "reserve" })
-            t.update(pRef, { status: "reserve" })
+            items.push({
+              productId: snap.id,
+              productName: snap.data().name,
+              price,
+              isFree: false,
+              status: "reserve"
+            })
+          }
+
+          /* =====================
+             3️⃣ ÉCRITURES APRÈS
+          ====================== */
+          for (const { ref } of productSnaps) {
+            t.update(ref, { status: "reserve" })
           }
 
           const rentalRef = doc(collection(db, "rentals"))
@@ -240,36 +327,38 @@ export default {
             clientName: this.clients.find(c => c.id === this.selectedClientId).name,
             items,
             total,
-            status: "reserve",               // 📦 matériel
-            paymentStatus: total === 0 ? "soldé" : "NonSoldé", // 💰 paiement
-            createdAt: serverTimestamp(),
-             soldedAt: serverTimestamp(), 
+            status: "reserve",
+            paymentStatus: total === 0 ? "soldé" : "non_soldé",
+            soldedAt: total === 0 ? serverTimestamp() : null,
+            createdAt: serverTimestamp()
           })
         })
 
         this.cart = []
         this.selectedClientId = ""
-        this.load()
+        await this.load()
+
+      } catch (e) {
+        alert(e.message)
       } finally {
         this.loading = false
       }
     },
 
     async markAsOut(r) {
-      for (const i of r.items) {
+      for (const i of r.items)
         await updateDoc(doc(db, "products", i.productId), { status: "sortie" })
-      }
       await updateDoc(doc(db, "rentals", r.id), { status: "sortie" })
       this.load()
     },
 
     async markAsReturned(r) {
-      for (const i of r.items) {
+      for (const i of r.items)
         await updateDoc(doc(db, "products", i.productId), { status: "disponible" })
-      }
       await updateDoc(doc(db, "rentals", r.id), { status: "clos" })
       this.load()
     },
+
     async markAsPaid(r) {
       await updateDoc(doc(db, "rentals", r.id), {
         paymentStatus: "soldé",
@@ -277,22 +366,24 @@ export default {
       })
       this.loadRentals()
     },
+
+    async markAsDebt(r) {
+      await updateDoc(doc(db, "rentals", r.id), { paymentStatus: "dette" })
+      this.loadRentals()
+    },
+
     openModal(r) {
       this.modalRental = r
     },
-    async markAsDebt(r) {
-      await updateDoc(doc(db, "rentals", r.id), {
-        paymentStatus: "dette"
-      })
-      this.loadRentals()
-    },
+
     closeModal() {
       this.modalRental = null
     },
 
     formatDate(d) {
-      if (!d?.seconds) return ""
-      return new Date(d.seconds * 1000).toLocaleDateString("fr-FR")
+      return d?.seconds
+        ? new Date(d.seconds * 1000).toLocaleDateString("fr-FR")
+        : ""
     },
 
     prevPage() {
@@ -310,7 +401,78 @@ export default {
 </script>
 
 
+
 <style>
+.receipt {
+  position: absolute;
+  left: -9999px;
+  width: 350px;
+  padding: 20px;
+  font-family: Arial, sans-serif;
+  background: white;
+  color: #111;
+}
+
+.receipt h2 {
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.receipt hr {
+  margin: 10px 0;
+}
+
+.receipt .footer {
+  margin-top: 14px;
+  text-align: center;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.thermal-receipt {
+  position: absolute;
+  left: -9999px;
+  background: white;
+  color: #000;
+  padding: 10px;
+  font-family: "Courier New", monospace;
+  font-size: 12px;
+}
+
+.center {
+  text-align: center;
+}
+
+.logo {
+  max-width: 80px;
+  margin-bottom: 4px;
+}
+
+.item {
+  display: flex;
+  justify-content: space-between;
+  margin: 2px 0;
+}
+
+.total {
+  text-align: center;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.signature {
+  text-align: center;
+}
+
+.sign-img {
+  max-width: 100px;
+  margin-top: 6px;
+}
+
+.footer {
+  font-size: 10px;
+}
+
 /* ================= PAGE ================= */
 .page {
   max-width: 1100px;

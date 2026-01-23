@@ -1,4 +1,3 @@
-
 <template>
   <!-- Bouton burger (mobile) -->
   <button class="burger" @click="open = !open">☰</button>
@@ -8,30 +7,63 @@
 
   <!-- Sidebar -->
   <nav class="sidebar" :class="{ open }">
-    <h3><img style="width: 200px;" src="../assets/logGT.png" alt="" sizes="" srcset=""></h3>
-    <h3><router-link @click="open = false" to="/dashboard">📊 Dashboard</router-link></h3>
-    <h3><router-link @click="open = false" to="/products">🛒 Produits</router-link></h3>
-    <h3><router-link @click="open = false" to="/clients">📥 Clients</router-link></h3>
-    <h3><router-link @click="open = false" to="/sales">📦 Location</router-link></h3>
-    <h3><router-link @click="open = false" to="/comptabilite">📒 Comptabilitee</router-link></h3>
+    <h3>
+      <img style="width: 200px;" src="../assets/logGT.png" alt="Logo">
+    </h3>
+    <h3><router-link @click="closeSidebar" to="/dashboard">📊 Dashboard</router-link></h3>
+    <h3><router-link @click="closeSidebar" to="/products">🛒 Produits</router-link></h3>
+    <h3><router-link @click="closeSidebar" to="/clients">📥 Clients</router-link></h3>
+    <h3><router-link @click="closeSidebar" to="/sales">📦 Location</router-link></h3>
+    <h3><router-link @click="closeSidebar" to="/comptabilite">📒 Comptabilité</router-link></h3>
+
+    <!-- Bouton déconnexion -->
+    <h3>
+      <button class="btn-logout" @click="logout">🚪 Déconnexion</button>
+    </h3>
   </nav>
 </template>
+
 <script>
+import { auth } from '../firebase'
+import { useRouter } from 'vue-router'
+
 export default {
   data() {
     return {
       open: false
     }
+  },
+  setup() {
+    const router = useRouter()
+
+    // Fonction de logout Firebase
+    const logout = async () => {
+      try {
+        await auth.signOut()
+        router.replace('/') // redirige vers Loading/Login
+      } catch (error) {
+        console.error("Erreur déconnexion :", error)
+        alert("Impossible de se déconnecter")
+      }
+    }
+
+    return { logout, router }
+  },
+  methods: {
+    closeSidebar() {
+      this.open = false
+    }
   }
 }
 </script>
+
 <style scoped>
-  /* ===== BURGER ===== */
+/* ===== BURGER ===== */
 .burger {
   display: none;
   position: fixed;
   top: 12px;
-  left: 0px;
+  left: 9px;
   z-index: 200;
   font-size: 1.6rem;
   background: #3b82f6;
@@ -83,6 +115,23 @@ export default {
   background: #3b82f6;
 }
 
+/* ===== BOUTON DECONNEXION ===== */
+.btn-logout {
+  width: 100%;
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.2s ease;
+}
+
+.btn-logout:hover {
+  background: #dc2626;
+}
+
 /* ===== MOBILE ===== */
 @media (max-width: 768px) {
   .burger {
@@ -104,5 +153,4 @@ export default {
     display: none;
   }
 }
-
 </style>
