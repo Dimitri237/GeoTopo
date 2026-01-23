@@ -66,11 +66,11 @@ export default {
   left: 9px;
   z-index: 200;
   font-size: 1.6rem;
-  background: #3b82f6;
+  background: rgb(252, 146, 48);
   color: white;
   border: none;
   border-radius: 8px;
-  padding: 6px 10px;
+  padding: 10px 10px;
   cursor: pointer;
 }
 
@@ -87,9 +87,11 @@ export default {
   position: fixed;
   top: 0;
   left: 0;
+  margin: 0;
   height: 100vh;
   width: 220px;
   background: #111827;
+  border-radius: 0px!important;
   padding: 20px 16px;
   box-shadow: 2px 0 10px rgba(0,0,0,0.25);
   transform: translateX(0);

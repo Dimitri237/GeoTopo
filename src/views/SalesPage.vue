@@ -130,7 +130,7 @@
     <!-- REÇU THERMIQUE (HORS UI) -->
     <div v-if="modalRental" ref="receipt" class="thermal-receipt" :style="{ width: receiptWidth + 'px' }">
       <div class="center">
-        <img src="../assets/logGT.png" class="logo" />
+        <img style="width: 150px;" src="../assets/logGT.png" class="logo" />
         <!-- <h3>WS AUTO LOCATION</h3> -->
         <small>Location de matériel</small>
       </div>
