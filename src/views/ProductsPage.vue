@@ -24,7 +24,7 @@
       <div v-for="p in products" :key="p.id" class="card product">
         <div class="header">
           <div class="info">
-            <strong>{{ p.name }}</strong>
+            <strong>{{ p.name }}-{{ p.numberApp }}</strong>
             <span class="price">{{ p.price }} FCFA </span>
           </div>
           <button class="danger" @click="deleteProduct(p)">❌</button>

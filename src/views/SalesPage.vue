@@ -14,7 +14,7 @@
       <select v-model="selectedProductId">
         <option disabled value="">-- Produit --</option>
         <option v-for="p in products" :key="p.id" :value="p.id" :disabled="p.status !== 'disponible'">
-          {{ p.name }} ({{ p.price }} FCFA)
+          {{ p.name }}-{{ p.numberApp }} ({{ p.price }} FCFA)
         </option>
       </select>
 
@@ -29,7 +29,7 @@
 
       <div v-for="i in cart" :key="i.productId" class="cart-item">
         <div>
-          <strong>{{ i.productName }}</strong>
+          <strong>{{ i.productName }}-{{ i.productNumber }}</strong>
           <div class="meta">
             {{ i.isFree ? "GRATUIT" : i.price + " FCFA" }}
           </div>
@@ -109,7 +109,7 @@
         <hr />
 
         <div v-for="i in modalRental.items" :key="i.productId">
-          {{ i.productName }} — {{ i.isFree ? "GRATUIT" : i.price + " FCFA" }}
+          {{ i.productName }}-{{ i.productNumber }} — {{ i.isFree ? "GRATUIT" : i.price + " FCFA" }}
         </div>
 
         <hr />
@@ -143,7 +143,7 @@
       <hr />
 
       <div v-for="i in modalRental.items" :key="i.productId" class="item">
-        <span>{{ i.productName }}</span>
+        <span>{{ i.productName }}-{{ i.productNumber }}</span>
         <span>{{ i.isFree ? 0 : i.price }} FCFA</span>
       </div>
 
@@ -262,6 +262,7 @@ export default {
       this.cart.push({
         productId: p.id,
         productName: p.name,
+        productNumber: p.numberApp,
         price: p.price,
         isFree: false
       })
@@ -308,6 +309,7 @@ export default {
             items.push({
               productId: snap.id,
               productName: snap.data().name,
+              productNumber: snap.data().numberApp,
               price,
               isFree: false,
               status: "reserve"
