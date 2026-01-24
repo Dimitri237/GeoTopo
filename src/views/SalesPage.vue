@@ -161,7 +161,7 @@
 
       <p class="center footer">
         Merci pour votre confiance 🙏<br />
-        📞 +237 6XX XXX XXX
+        📞 +237 691 145 350
       </p>
     </div>
   </div>
