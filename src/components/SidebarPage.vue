@@ -12,7 +12,7 @@
     </h3>
     <h3><router-link @click="closeSidebar" to="/dashboard">📊 Dashboard</router-link></h3>
     <h3><router-link @click="closeSidebar" to="/products">🛒 Produits</router-link></h3>
-    <h3><router-link @click="closeSidebar" to="/accessoirs">🛒 Accessoirs</router-link></h3>
+    <h3><router-link @click="closeSidebar" to="/accessoir">🛒 Accessoirs</router-link></h3>
     <h3><router-link @click="closeSidebar" to="/clients">📥 Clients</router-link></h3>
     <h3><router-link @click="closeSidebar" to="/sales">📦 Location</router-link></h3>
     <h3><router-link @click="closeSidebar" to="/comptabilite">📒 Comptabilité</router-link></h3>
