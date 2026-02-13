@@ -55,8 +55,8 @@ export default {
 
     async add() {
       this.loading = true;
-      if (!this.name || this.price <= 0) return alert("Nom et prix valides requis !");
-      await addDoc(collection(db, "products"), {
+      if (!this.name) return alert("Nom valides requis !");
+      await addDoc(collection(db, "accessoirs"), {
         name: this.name,
         typeP: this.typeP,
         status: this.status,
