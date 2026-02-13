@@ -1,12 +1,11 @@
 <template>
   <div class="page">
-    <h2 class="title">🛒 Produits</h2>
+    <h2 class="title">🛒 Accessoirs</h2>
 
     <!-- ➕ AJOUT PRODUIT -->
     <div class="card form">
       <input v-model="name" placeholder="Nom" />
-      <input v-model="typeP" placeholder="Appareil" disabled="" />
-      <input v-model="marque" placeholder="Marque" />
+      <input v-model="typeP" placeholder="Accessoire" disabled="" />
       <input v-model="numberApp" placeholder="Numero" />
       <input v-model.number="price" type="number" min="0" placeholder="Prix de location" />
       <button class="btn primary" @click="add" :disabled="loading">
@@ -18,13 +17,13 @@
 
     <!-- LISTE PRODUITS -->
     <transition-group name="list" tag="div">
-      <div v-for="p in products" :key="p.id" class="card product">
+      <div v-for="a in accessoirs" :key="a.id" class="card product">
         <div class="header">
           <div class="info">
-            <strong>{{ p.name }}-{{ p.numberApp }}</strong>
-            <span class="price">{{ p.price }} FCFA </span>
+            <strong>{{ a.name }}-{{ a.numberApp }}</strong>
+            <span class="price">{{ a.price }} FCFA </span>
           </div>
-          <button class="danger" @click="deleteProduct(p)">❌</button>
+          <button class="danger" @click="deleteAccessoir(a)">❌</button>
         </div>
       </div>
 
@@ -39,10 +38,9 @@ import { collection, addDoc, getDocs, deleteDoc, doc } from "firebase/firestore"
 export default {
   data() {
     return { 
-      products: [],
+      accessoirs: [],
        name: "", 
-       typeP: "Appareil", 
-       marque: "", 
+       typeP: "Accessoire", 
        status: "disponible", 
        numberApp: "", 
        loading: false, 
@@ -51,8 +49,8 @@ export default {
 
   methods: {
     async load() {
-      const snap = await getDocs(collection(db, "products"));
-      this.products = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const snap = await getDocs(collection(db, "accessoirs"));
+      this.accessoirs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     },
 
     async add() {
@@ -61,7 +59,6 @@ export default {
       await addDoc(collection(db, "products"), {
         name: this.name,
         typeP: this.typeP,
-        marque: this.marque,
         status: this.status,
         numberApp: this.numberApp,
         price: this.price,
@@ -71,15 +68,14 @@ export default {
       alert("Enregistrement reussi")
       this.name = "";
       this.typeP = "";
-      this.marque = "";
       this.numberApp = "";
       this.price = 0;
       this.load();
     },
 
-    async deleteProduct(p) {
-      if (!confirm(`Supprimer le produit "${p.name}" ?`)) return;
-      await deleteDoc(doc(db, "products", p.id));
+    async deleteAccessoir(a) {
+      if (!confirm(`Supprimer l'accessoir "${a.name}" ?`)) return;
+      await deleteDoc(doc(db, "accessoirs", a.id));
       this.load();
     }
   },

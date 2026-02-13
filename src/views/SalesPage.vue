@@ -17,6 +17,12 @@
           {{ p.name }}-{{ p.numberApp }} ({{ p.price }} FCFA)
         </option>
       </select>
+      <select v-model="selectedAccessoirId">
+        <option disabled value="">-- Accesssoir --</option>
+        <option v-for="a in accessoirs" :key="a.id" :value="a.id" :disabled="a.status !== 'disponible'">
+          {{ a.name }}-{{ a.numberApp }} ({{ a.price }} FCFA)
+        </option>
+      </select>
 
       <button class="btn primary" @click="addToCart" :disabled="loading">
         Enregistrer
@@ -27,16 +33,15 @@
     <div v-if="cart.length" class="card">
       <h3>Produits réservés</h3>
 
-      <div v-for="i in cart" :key="i.productId" class="cart-item">
+      <div v-for="(i, index) in cart" :key="index" class="cart-item">
         <div>
-          <strong>{{ i.productName }}-{{ i.productNumber }}</strong>
+          <strong>{{ i.name }}-{{ i.number }}</strong>
           <div class="meta">
             {{ i.isFree ? "GRATUIT" : i.price + " FCFA" }}
           </div>
         </div>
-        <button class="danger" @click="removeFromCart(i.productId)">❌</button>
+        <button class="danger" @click="removeFromCart(index)">❌</button>
       </div>
-
       <div class="total">
         Total : <strong>{{ rentalTotal }} FCFA</strong>
       </div>
@@ -108,10 +113,10 @@
 
         <hr />
 
-        <div v-for="i in modalRental.items" :key="i.productId">
-          {{ i.productName }}-{{ i.productNumber }} — {{ i.isFree ? "GRATUIT" : i.price + " FCFA" }}
+        <div v-for="(i, index) in modalRental.items" :key="index">
+          {{ i.name }}-{{ i.number }} —
+          {{ i.isFree ? "GRATUIT" : i.price + " FCFA" }}
         </div>
-
         <hr />
         <strong>Total : {{ modalRental.total }} FCFA</strong>
 
@@ -122,6 +127,7 @@
         <button class="btn full" @click="generateReceipt(modalRental, 80)">
           🖨️ Ticket 80mm
         </button>
+
 
         <button class="btn primary full" @click="closeModal">Fermer</button>
       </div>
@@ -161,7 +167,7 @@
 
       <p class="center footer">
         Merci pour votre confiance 🙏<br />
-        📞 +237 6XX XXX XXX
+        📞 +237 691 145 350
       </p>
     </div>
   </div>
@@ -184,10 +190,12 @@ export default {
       receiptWidth: 220,
       clients: [],
       products: [],
+      accessoirs: [],
       rentals: [],
       cart: [],
       selectedClientId: "",
       selectedProductId: "",
+      selectedAccessoirId: "",
       loading: false,
       modalRental: null,
       statusFilter: "all",
@@ -243,6 +251,9 @@ export default {
       const p = await getDocs(collection(db, "products"))
       this.products = p.docs.map(d => ({ id: d.id, ...d.data() }))
 
+      const a = await getDocs(collection(db, "accessoirs"))
+      this.accessoirs = a.docs.map(d => ({ id: d.id, ...d.data() }))
+
       this.loadRentals()
     },
 
@@ -254,23 +265,50 @@ export default {
     },
 
     addToCart() {
-      if (!this.selectedClientId) return alert("Sélectionnez un client")
-      const p = this.products.find(x => x.id === this.selectedProductId)
-      if (!p || p.status !== "disponible") return
-      if (this.cart.some(i => i.productId === p.id)) return
+      if (!this.selectedClientId) {
+        alert("Sélectionnez un client")
+        return
+      }
 
-      this.cart.push({
-        productId: p.id,
-        productName: p.name,
-        productNumber: p.numberApp,
-        price: p.price,
-        isFree: false
-      })
-      this.selectedProductId = ""
+      // PRODUIT
+      if (this.selectedProductId) {
+        const p = this.products.find(x => x.id === this.selectedProductId)
+        if (p && p.status === "disponible" &&
+          !this.cart.some(i => i.itemId === p.id)) {
+
+          this.cart.push({
+            type: "product",
+            itemId: p.id,
+            name: p.name,
+            number: p.numberApp,
+            price: p.price,
+            isFree: false
+          })
+        }
+        this.selectedProductId = ""
+      }
+
+      // ACCESSOIRE
+      if (this.selectedAccessoirId) {
+        const a = this.accessoirs.find(x => x.id === this.selectedAccessoirId)
+        if (a && a.status === "disponible" &&
+          !this.cart.some(i => i.itemId === a.id)) {
+
+          this.cart.push({
+            type: "accessoir",
+            itemId: a.id,
+            name: a.name,
+            number: a.numberApp,
+            price: a.price,
+            isFree: false
+          })
+        }
+        this.selectedAccessoirId = ""
+      }
     },
 
-    removeFromCart(id) {
-      this.cart = this.cart.filter(i => i.productId !== id)
+    removeFromCart(index) {
+      this.cart.splice(index, 1)
     },
 
     async saveRental() {
@@ -280,53 +318,47 @@ export default {
       try {
         await runTransaction(db, async (t) => {
 
-          /* =====================
-             1️⃣ LECTURES D’ABORD
-          ====================== */
-          const productSnaps = []
-
-          for (const i of this.cart) {
-            const pRef = doc(db, "products", i.productId)
-            const snap = await t.get(pRef)
-
-            if (!snap.exists() || snap.data().status !== "disponible") {
-              throw new Error("Produit indisponible")
-            }
-
-            productSnaps.push({ ref: pRef, snap })
-          }
-
-          /* =====================
-             2️⃣ CALCUL & ITEMS
-          ====================== */
+          const refs = []
           let total = 0
           const items = []
 
-          for (const { snap } of productSnaps) {
-            const price = snap.data().price
-            total += price
+          for (const i of this.cart) {
+            const collectionName =
+              i.type === "product" ? "products" : "accessoirs"
+
+            const ref = doc(db, collectionName, i.itemId)
+            const snap = await t.get(ref)
+
+            if (!snap.exists() || snap.data().status !== "disponible") {
+              throw new Error("Un article est indisponible")
+            }
+
+            refs.push({ ref, type: i.type })
+
+            total += snap.data().price
 
             items.push({
-              productId: snap.id,
-              productName: snap.data().name,
-              productNumber: snap.data().numberApp,
-              price,
+              itemId: snap.id,
+              name: snap.data().name,
+              number: snap.data().numberApp,
+              price: snap.data().price,
               isFree: false,
+              type: i.type,
               status: "reserve"
             })
           }
 
-          /* =====================
-             3️⃣ ÉCRITURES APRÈS
-          ====================== */
-          for (const { ref } of productSnaps) {
-            t.update(ref, { status: "reserve" })
+          // Update status
+          for (const r of refs) {
+            t.update(r.ref, { status: "reserve" })
           }
 
           const rentalRef = doc(collection(db, "rentals"))
           t.set(rentalRef, {
             clientId: this.selectedClientId,
-            clientName: this.clients.find(c => c.id === this.selectedClientId).name,
+            clientName: this.clients.find(
+              c => c.id === this.selectedClientId
+            ).name,
             items,
             total,
             status: "reserve",
@@ -348,15 +380,19 @@ export default {
     },
 
     async markAsOut(r) {
-      for (const i of r.items)
-        await updateDoc(doc(db, "products", i.productId), { status: "sortie" })
+      for (const i of r.items) {
+        const col = i.type === "product" ? "products" : "accessoirs"
+        await updateDoc(doc(db, col, i.itemId), { status: "sortie" })
+      }
       await updateDoc(doc(db, "rentals", r.id), { status: "sortie" })
       this.load()
     },
 
     async markAsReturned(r) {
-      for (const i of r.items)
-        await updateDoc(doc(db, "products", i.productId), { status: "disponible" })
+      for (const i of r.items) {
+        const col = i.type === "product" ? "products" : "accessoirs"
+        await updateDoc(doc(db, col, i.itemId), { status: "disponible" })
+      }
       await updateDoc(doc(db, "rentals", r.id), { status: "clos" })
       this.load()
     },
@@ -370,7 +406,9 @@ export default {
     },
 
     async markAsDebt(r) {
-      await updateDoc(doc(db, "rentals", r.id), { paymentStatus: "dette" })
+      await updateDoc(doc(db, "rentals", r.id), {
+        paymentStatus: "dette"
+      })
       this.loadRentals()
     },
 
@@ -391,6 +429,7 @@ export default {
     prevPage() {
       if (this.currentPage > 1) this.currentPage--
     },
+
     nextPage() {
       if (this.currentPage < this.totalPages) this.currentPage++
     }
