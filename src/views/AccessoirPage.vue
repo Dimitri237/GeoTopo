@@ -4,7 +4,15 @@
 
     <!-- ➕ AJOUT PRODUIT -->
     <div class="card form">
-      <input v-model="name" placeholder="Nom" />
+      <select name="" v-model="name" id="">
+        <option disabled value="">-- Selectionner l'accessoir --</option>
+        <option value="Trepied">Trepied</option>
+        <option value="Tripod">Tripod</option>
+        <option value="Bipode">Bipode</option>
+        <option value="CanneST">CanneST</option>
+        <option value="CanneGPS">CanneGPS</option>
+        <option value="Prisme">Prisme</option>
+      </select>
       <input v-model="typeP" placeholder="Accessoire" disabled="" />
       <input v-model="numberApp" placeholder="Numero" />
       <input v-model.number="price" type="number" min="0" placeholder="Prix de location" />
