@@ -65,7 +65,7 @@
           :class="p.status"
         >
           <div>
-            <strong>{{ p.name }}</strong>
+            <strong>{{ p.name }}-{{ p.numberApp }}</strong>
             <small>{{ p.price }} FCFA / jour</small>
           </div>
 
