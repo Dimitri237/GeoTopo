@@ -11,16 +11,22 @@
         </option>
       </select>
 
+      <input type="text" v-model="searchProduct" placeholder="🔎 Rechercher appareil..." />
+
       <select v-model="selectedProductId">
         <option disabled value="">-- Produit --</option>
-        <option v-for="p in products" :key="p.id" :value="p.id" :disabled="p.status !== 'disponible'">
-          {{ p.name }}-{{ p.numberApp }} ({{ p.price }} FCFA)
+
+        <option v-for="p in filteredProducts" :key="p.id" :value="p.id" :disabled="p.status !== 'disponible'">
+          {{ p.name }} - {{ p.numberApp }} ({{ p.price }} FCFA)
         </option>
       </select>
+      <input type="text" v-model="searchAccessoir" placeholder="🔎 Rechercher accessoire..." />
+
       <select v-model="selectedAccessoirId">
-        <option disabled value="">-- Accesssoir --</option>
-        <option v-for="a in accessoirs" :key="a.id" :value="a.id" :disabled="a.status !== 'disponible'">
-          {{ a.name }}-{{ a.numberApp }} ({{ a.price }} FCFA)
+        <option disabled value="">-- Accessoire --</option>
+
+        <option v-for="a in filteredAccessoirs" :key="a.id" :value="a.id" :disabled="a.status !== 'disponible'">
+          {{ a.name }} - {{ a.numberApp }} ({{ a.price }} FCFA)
         </option>
       </select>
 
@@ -201,11 +207,30 @@ export default {
       modalRental: null,
       statusFilter: "all",
       currentPage: 1,
+      searchProduct: "",
+      searchAccessoir: "",
       pageSize: 5
     }
   },
 
   computed: {
+    filteredProducts() {
+      if (!this.searchProduct) return this.products
+
+      return this.products.filter(p =>
+        p.name?.toLowerCase().includes(this.searchProduct.toLowerCase()) ||
+        p.numberApp?.toLowerCase().includes(this.searchProduct.toLowerCase())
+      )
+    },
+
+    filteredAccessoirs() {
+      if (!this.searchAccessoir) return this.accessoirs
+
+      return this.accessoirs.filter(a =>
+        a.name?.toLowerCase().includes(this.searchAccessoir.toLowerCase()) ||
+        a.numberApp?.toLowerCase().includes(this.searchAccessoir.toLowerCase())
+      )
+    },
     rentalTotal() {
       return this.cart.reduce((s, i) => s + (i.isFree ? 0 : i.price), 0)
     },
