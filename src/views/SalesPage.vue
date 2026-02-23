@@ -47,7 +47,8 @@
       </div>
 
       <button class="btn primary full" @click="saveRental" :disabled="loading">
-        Valider location
+        <span v-if="loading">⏳ Enregistrement...</span>
+        <span v-else>Valider location</span>
       </button>
     </div>
 
@@ -148,9 +149,9 @@
 
       <hr />
 
-      <div v-for="i in modalRental.items" :key="i.productId" class="item">
-        <span>{{ i.productName }}-{{ i.productNumber }}</span>
-        <span>{{ i.isFree ? 0 : i.price }} FCFA</span>
+      <div v-for="i in modalRental.items" :key="i.itemId" class="item">
+        <span>{{ i.name }}-{{ i.number }}</span>
+        <span>{{ i.price }} FCFA</span>
       </div>
 
       <hr />
@@ -235,7 +236,8 @@ export default {
 
       const canvas = await html2canvas(this.$refs.receipt, {
         scale: 2,
-        backgroundColor: "#fff"
+        backgroundColor: "#fff",
+        useCORS: true
       })
 
       const link = document.createElement("a")
@@ -266,43 +268,42 @@ export default {
 
     addToCart() {
       if (!this.selectedClientId) {
-        alert("Sélectionnez un client")
+        alert("Veuillez sélectionner un client.")
         return
       }
 
-      // PRODUIT
-      if (this.selectedProductId) {
-        const p = this.products.find(x => x.id === this.selectedProductId)
-        if (p && p.status === "disponible" &&
-          !this.cart.some(i => i.itemId === p.id)) {
+      const addItem = (item, type) => {
+        if (!item) return
 
-          this.cart.push({
-            type: "product",
-            itemId: p.id,
-            name: p.name,
-            number: p.numberApp,
-            price: p.price,
-            isFree: false
-          })
+        if (item.status !== "disponible") {
+          alert("Article indisponible.")
+          return
         }
+
+        if (this.cart.some(i => i.itemId === item.id)) {
+          alert("Article déjà ajouté.")
+          return
+        }
+
+        this.cart.push({
+          type,
+          itemId: item.id,
+          name: item.name,
+          number: item.numberApp,
+          price: item.price,
+          isFree: false
+        })
+      }
+
+      if (this.selectedProductId) {
+        const product = this.products.find(p => p.id === this.selectedProductId)
+        addItem(product, "product")
         this.selectedProductId = ""
       }
 
-      // ACCESSOIRE
       if (this.selectedAccessoirId) {
-        const a = this.accessoirs.find(x => x.id === this.selectedAccessoirId)
-        if (a && a.status === "disponible" &&
-          !this.cart.some(i => i.itemId === a.id)) {
-
-          this.cart.push({
-            type: "accessoir",
-            itemId: a.id,
-            name: a.name,
-            number: a.numberApp,
-            price: a.price,
-            isFree: false
-          })
-        }
+        const accessoir = this.accessoirs.find(a => a.id === this.selectedAccessoirId)
+        addItem(accessoir, "accessoir")
         this.selectedAccessoirId = ""
       }
     },
@@ -313,52 +314,61 @@ export default {
 
     async saveRental() {
       if (!this.cart.length) return
+      if (!this.selectedClientId) return
+
       this.loading = true
 
       try {
         await runTransaction(db, async (t) => {
 
-          const refs = []
           let total = 0
           const items = []
+          const updates = []
 
-          for (const i of this.cart) {
+          for (const cartItem of this.cart) {
+
             const collectionName =
-              i.type === "product" ? "products" : "accessoirs"
+              cartItem.type === "product" ? "products" : "accessoirs"
 
-            const ref = doc(db, collectionName, i.itemId)
+            const ref = doc(db, collectionName, cartItem.itemId)
             const snap = await t.get(ref)
 
-            if (!snap.exists() || snap.data().status !== "disponible") {
-              throw new Error("Un article est indisponible")
+            if (!snap.exists()) {
+              throw new Error("Article introuvable.")
             }
 
-            refs.push({ ref, type: i.type })
+            const data = snap.data()
 
-            total += snap.data().price
+            if (data.status !== "disponible") {
+              throw new Error(`${data.name} n'est plus disponible.`)
+            }
+
+            total += data.price
 
             items.push({
               itemId: snap.id,
-              name: snap.data().name,
-              number: snap.data().numberApp,
-              price: snap.data().price,
-              isFree: false,
-              type: i.type,
+              name: data.name,
+              number: data.numberApp,
+              price: data.price,
+              type: cartItem.type,
               status: "reserve"
             })
+
+            updates.push(ref)
           }
 
-          // Update status
-          for (const r of refs) {
-            t.update(r.ref, { status: "reserve" })
-          }
+          // Mise à jour des statuts
+          updates.forEach(ref => {
+            t.update(ref, { status: "reserve" })
+          })
 
           const rentalRef = doc(collection(db, "rentals"))
+
           t.set(rentalRef, {
             clientId: this.selectedClientId,
             clientName: this.clients.find(
               c => c.id === this.selectedClientId
-            ).name,
+            )?.name || "",
             items,
             total,
             status: "reserve",
@@ -380,11 +390,16 @@ export default {
     },
 
     async markAsOut(r) {
+      const batch = []
+
       for (const i of r.items) {
         const col = i.type === "product" ? "products" : "accessoirs"
-        await updateDoc(doc(db, col, i.itemId), { status: "sortie" })
+        batch.push(updateDoc(doc(db, col, i.itemId), { status: "sortie" }))
       }
-      await updateDoc(doc(db, "rentals", r.id), { status: "sortie" })
+
+      batch.push(updateDoc(doc(db, "rentals", r.id), { status: "sortie" }))
+
+      await Promise.all(batch)
       this.load()
     },
 
