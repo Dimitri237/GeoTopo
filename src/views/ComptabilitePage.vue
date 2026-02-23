@@ -196,17 +196,17 @@ export default {
 
     /* ============ LIGNES ============ */
     pdf.setFont("helvetica", "normal")
-    day.operations.forEach(op => {
-      if (y > 270) {
-        pdf.addPage()
-        y = 20
-      }
+    day.sorties.forEach(op => {
+  if (y > 270) {
+    pdf.addPage()
+    y = 20
+  }
 
-      pdf.text(op.clientName, 16, y)
-      pdf.text(`${op.total} FCFA`, 120, y)
-      pdf.text(this.labelStatus(op.paymentStatus), 160, y)
-      y += 7
-    })
+  pdf.text(op.clientName || "", 16, y)
+  pdf.text(`${op.total || 0} FCFA`, 120, y)
+  pdf.text(this.labelStatus(op.paymentStatus), 160, y)
+  y += 7
+})
 
     /* ============ TOTAUX ============ */
     y += 8
