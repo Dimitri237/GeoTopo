@@ -1,7 +1,18 @@
 <template>
   <div class="page">
     <h2 class="title">📒 Comptabilité journalière</h2>
+<div class="search-box">
+  <input
+    type="date"
+    v-model="searchDate"
+  />
 
+  <input
+    type="text"
+    v-model="searchClient"
+    placeholder="🔎 Rechercher par client..."
+  />
+</div>
     <div v-if="Object.keys(grouped).length === 0" class="empty">
       Aucune opération enregistrée
     </div>
@@ -14,7 +25,7 @@
       </div>
 
       <!-- ================= OPERATIONS ================= -->
-      <div v-for="op in day.operations" :key="op.id" class="op-row">
+      <div v-for="op in day.sorties" :key="op.id" class="op-row">
         <div>
           <strong>{{ op.clientName }}</strong>
           <small>{{ op.total }} FCFA</small>
@@ -27,9 +38,12 @@
 
       <!-- ================= FOOTER ================= -->
       <div class="day-footer">
-        <span>✔ Soldé : {{ day.solded }} FCFA</span>
-        <span>❌ Dette : {{ day.debt }} FCFA</span>
-      </div>
+  <div>📦 Total sorties : {{ day.totalSorties }} FCFA</div>
+  <div>✔ Soldé : {{ day.solded }} FCFA</div>
+  <div>🟡 Non soldé : {{ day.non_solded }} FCFA</div>
+  <div>❌ Dette : {{ day.debt }} FCFA</div>
+  <div>💰 Encaissements du jour : {{ day.encaissements }} FCFA</div>
+</div>
 
       <!-- ================= EXPORT ================= -->
       <button class="btn export" @click="exportPDF(date, day)">
@@ -47,49 +61,82 @@ import jsPDF from "jspdf"
 
 export default {
   data() {
-    return {
-      rentals: []
-    }
+   return {
+  rentals: [],
+  searchDate: "",
+  searchClient: ""
+}
   },
 
   computed: {
-    grouped() {
-      const map = {}
+   grouped() {
+  const map = {}
 
-      this.rentals.forEach(r => {
-        if (!r.soldedAt) return
+  this.rentals.forEach(r => {
 
-        const dateKey = new Date(
-          r.soldedAt.seconds * 1000
-        ).toISOString().split("T")[0]
+    /* =============================
+       1️⃣ SORTIES DU JOUR
+    ============================== */
 
-        if (!map[dateKey]) {
-          map[dateKey] = {
-            operations: [],
-            total: 0,   // encaissé réel
-            solded: 0,
-            debt: 0
-          }
+    if (r.createdAt) {
+      const createdDate = new Date(
+        r.createdAt.seconds * 1000
+      ).toISOString().split("T")[0]
+
+      if (!map[createdDate]) {
+        map[createdDate] = {
+          sorties: [],
+          totalSorties: 0,
+          solded: 0,
+          non_solded: 0,
+          debt: 0,
+          encaissements: 0
         }
+      }
 
-        map[dateKey].operations.push(r)
+      map[createdDate].sorties.push(r)
+      map[createdDate].totalSorties += r.total
 
-        if (r.paymentStatus === "soldé") {
-          map[dateKey].total += r.total
-          map[dateKey].solded += r.total
-        }
+      if (r.paymentStatus === "soldé")
+        map[createdDate].solded += r.total
 
-        if (r.paymentStatus === "dette") {
-          map[dateKey].debt += r.total
-        }
-      })
+      if (r.paymentStatus === "non_soldé")
+        map[createdDate].non_solded += r.total
 
-      return Object.fromEntries(
-        Object.entries(map).sort(
-          (a, b) => new Date(b[0]) - new Date(a[0])
-        )
-      )
+      if (r.paymentStatus === "dette")
+        map[createdDate].debt += r.total
     }
+
+    /* =============================
+       2️⃣ ENCAISSEMENTS DU JOUR
+    ============================== */
+
+    if (r.paymentStatus === "soldé" && r.soldedAt) {
+      const soldedDate = new Date(
+        r.soldedAt.seconds * 1000
+      ).toISOString().split("T")[0]
+
+      if (!map[soldedDate]) {
+        map[soldedDate] = {
+          sorties: [],
+          totalSorties: 0,
+          solded: 0,
+          non_solded: 0,
+          debt: 0,
+          encaissements: 0
+        }
+      }
+
+      map[soldedDate].encaissements += r.total
+    }
+  })
+
+  return Object.fromEntries(
+    Object.entries(map).sort(
+      (a, b) => new Date(b[0]) - new Date(a[0])
+    )
+  )
+}
   },
 
   methods: {
@@ -221,7 +268,19 @@ export default {
   margin-bottom: 16px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, .07);
 }
+.search-box {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
 
+.search-box input {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+}
 .day-header {
   display: flex;
   justify-content: space-between;
