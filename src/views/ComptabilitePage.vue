@@ -1,18 +1,11 @@
 <template>
   <div class="page">
     <h2 class="title">📒 Comptabilité journalière</h2>
-<div class="search-box">
-  <input
-    type="date"
-    v-model="searchDate"
-  />
+    <div class="search-box">
+      <input type="date" v-model="searchDate" />
 
-  <input
-    type="text"
-    v-model="searchClient"
-    placeholder="🔎 Rechercher par client..."
-  />
-</div>
+      <input type="text" v-model="searchClient" placeholder="🔎 Rechercher par client..." />
+    </div>
     <div v-if="Object.keys(grouped).length === 0" class="empty">
       Aucune opération enregistrée
     </div>
@@ -38,12 +31,12 @@
 
       <!-- ================= FOOTER ================= -->
       <div class="day-footer">
-  <div>📦: {{ day.totalSorties }} FCFA</div>
-  <div>✔: {{ day.solded }} FCFA</div>
-  <div>🟡: {{ day.non_solded }} FCFA</div>
-  <div>❌: {{ day.debt }} FCFA</div>
-  <div>💰: {{ day.encaissements }} FCFA</div>
-</div>
+        <div>📦: {{ day.totalSorties }} FCFA</div>
+        <div>✔: {{ day.solded }} FCFA</div>
+        <div>🟡: {{ day.non_solded }} FCFA</div>
+        <div>❌: {{ day.debt }} FCFA</div>
+        <div>💰: {{ day.encaissements }} FCFA</div>
+      </div>
 
       <!-- ================= EXPORT ================= -->
       <button class="btn export" @click="exportPDF(date, day)">
@@ -56,87 +49,86 @@
 <script>
 import { db } from "../firebase"
 import { collection, onSnapshot } from "firebase/firestore"
-import logo from "@/assets/logGT.png"
 import jsPDF from "jspdf"
 
 export default {
   data() {
-   return {
-  rentals: [],
-  searchDate: "",
-  searchClient: ""
-}
+    return {
+      rentals: [],
+      searchDate: "",
+      searchClient: ""
+    }
   },
 
   computed: {
-   grouped() {
-  const map = {}
+    grouped() {
+      const map = {}
 
-  this.rentals.forEach(r => {
+      this.rentals.forEach(r => {
 
-    /* =============================
-       1️⃣ SORTIES DU JOUR
-    ============================== */
+        /* =============================
+           1️⃣ SORTIES DU JOUR
+        ============================== */
 
-    if (r.createdAt) {
-      const createdDate = new Date(
-        r.createdAt.seconds * 1000
-      ).toISOString().split("T")[0]
+        if (r.createdAt) {
+          const createdDate = new Date(
+            r.createdAt.seconds * 1000
+          ).toISOString().split("T")[0]
 
-      if (!map[createdDate]) {
-        map[createdDate] = {
-          sorties: [],
-          totalSorties: 0,
-          solded: 0,
-          non_solded: 0,
-          debt: 0,
-          encaissements: 0
+          if (!map[createdDate]) {
+            map[createdDate] = {
+              sorties: [],
+              totalSorties: 0,
+              solded: 0,
+              non_solded: 0,
+              debt: 0,
+              encaissements: 0
+            }
+          }
+
+          map[createdDate].sorties.push(r)
+          map[createdDate].totalSorties += r.total
+
+          if (r.paymentStatus === "soldé")
+            map[createdDate].solded += r.total
+
+          if (r.paymentStatus === "non_soldé")
+            map[createdDate].non_solded += r.total
+
+          if (r.paymentStatus === "dette")
+            map[createdDate].debt += r.total
         }
-      }
 
-      map[createdDate].sorties.push(r)
-      map[createdDate].totalSorties += r.total
+        /* =============================
+           2️⃣ ENCAISSEMENTS DU JOUR
+        ============================== */
 
-      if (r.paymentStatus === "soldé")
-        map[createdDate].solded += r.total
+        if (r.paymentStatus === "soldé" && r.soldedAt) {
+          const soldedDate = new Date(
+            r.soldedAt.seconds * 1000
+          ).toISOString().split("T")[0]
 
-      if (r.paymentStatus === "non_soldé")
-        map[createdDate].non_solded += r.total
+          if (!map[soldedDate]) {
+            map[soldedDate] = {
+              sorties: [],
+              totalSorties: 0,
+              solded: 0,
+              non_solded: 0,
+              debt: 0,
+              encaissements: 0
+            }
+          }
 
-      if (r.paymentStatus === "dette")
-        map[createdDate].debt += r.total
-    }
-
-    /* =============================
-       2️⃣ ENCAISSEMENTS DU JOUR
-    ============================== */
-
-    if (r.paymentStatus === "soldé" && r.soldedAt) {
-      const soldedDate = new Date(
-        r.soldedAt.seconds * 1000
-      ).toISOString().split("T")[0]
-
-      if (!map[soldedDate]) {
-        map[soldedDate] = {
-          sorties: [],
-          totalSorties: 0,
-          solded: 0,
-          non_solded: 0,
-          debt: 0,
-          encaissements: 0
+          map[soldedDate].encaissements += r.total
         }
-      }
+      })
 
-      map[soldedDate].encaissements += r.total
+      return Object.fromEntries(
+        Object.entries(map).sort(
+          (a, b) => new Date(b[0]) - new Date(a[0])
+        )
+      )
     }
-  })
-
-  return Object.fromEntries(
-    Object.entries(map).sort(
-      (a, b) => new Date(b[0]) - new Date(a[0])
-    )
-  )
-}
   },
 
   methods: {
@@ -154,87 +146,39 @@ export default {
       if (s === "dette") return "Dette"
       return "En attente"
     },
+    exportPDF(date, day) {
+      const pdf = new jsPDF()
+      let y = 20
 
-   exportPDF(date, day) {
-  const pdf = new jsPDF("p", "mm", "a4")
-  const pageWidth = pdf.internal.pageSize.getWidth()
-  let y = 20
+      pdf.setFontSize(16)
+      pdf.text("COMPTABILITÉ JOURNALIÈRE", 105, y, { align: "center" })
+      y += 10
 
-  const img = new Image()
-  img.src = logo
+      pdf.setFontSize(11)
+      pdf.text(`Date : ${this.formatDate(date)}`, 105, y, { align: "center" })
+      y += 15
 
-  img.onload = () => {
-    /* ============ LOGO ============ */
-    pdf.addImage(img, "PNG", pageWidth / 2 - 20, y, 40, 20)
-    y += 30
+      pdf.setFontSize(12)
 
-    /* ============ TITRE ============ */
-    pdf.setFont("helvetica", "bold")
-    pdf.setFontSize(18)
-    pdf.text("COMPTABILITÉ JOURNALIÈRE", pageWidth / 2, y, { align: "center" })
-    y += 10
+      day.sorties.forEach(op => {
+        if (y > 270) {
+          pdf.addPage()
+          y = 20
+        }
 
-    pdf.setFont("helvetica", "normal")
-    pdf.setFontSize(11)
-    pdf.text(`Date : ${this.formatDate(date)}`, pageWidth / 2, y, { align: "center" })
-    y += 12
+        pdf.text(`${op.clientName} - ${op.total} FCFA - ${this.labelStatus(op.paymentStatus)}`, 15, y)
+        y += 8
+      })
 
-    pdf.setDrawColor(200)
-    pdf.line(14, y, pageWidth - 14, y)
-    y += 10
+      y += 10
+      pdf.text(`Total sorties : ${day.totalSorties} FCFA`, 15, y)
+      y += 8
+      pdf.text(`Total encaissé : ${day.encaissements} FCFA`, 15, y)
+      y += 8
+      pdf.text(`Total dette : ${day.debt} FCFA`, 15, y)
 
-    /* ============ TABLE HEADER ============ */
-    pdf.setFont("helvetica", "bold")
-    pdf.text("Client", 16, y)
-    pdf.text("Montant", 120, y)
-    pdf.text("Statut", 160, y)
-    y += 6
-
-    pdf.setDrawColor(230)
-    pdf.line(14, y, pageWidth - 14, y)
-    y += 6
-
-    /* ============ LIGNES ============ */
-    pdf.setFont("helvetica", "normal")
-    day.sorties.forEach(op => {
-  if (y > 270) {
-    pdf.addPage()
-    y = 20
-  }
-
-  pdf.text(op.clientName || "", 16, y)
-  pdf.text(`${op.total || 0} FCFA`, 120, y)
-  pdf.text(this.labelStatus(op.paymentStatus), 160, y)
-  y += 7
-})
-
-    /* ============ TOTAUX ============ */
-    y += 8
-    pdf.setDrawColor(200)
-    pdf.line(14, y, pageWidth - 14, y)
-    y += 8
-
-    pdf.setFont("helvetica", "bold")
-    pdf.setFontSize(12)
-    pdf.text(`Total encaissé : ${day.solded} FCFA`, 16, y)
-    y += 7
-    pdf.text(`Total dette : ${day.debt} FCFA`, 16, y)
-
-    /* ============ FOOTER ============ */
-    pdf.setFontSize(9)
-    pdf.setFont("helvetica", "normal")
-    pdf.text(
-      "GEOTOPO • Document comptable officiel",
-      pageWidth / 2,
-      290,
-      { align: "center" }
-    )
-
-    pdf.save(`comptabilite-${date}.pdf`)
-  }
-}
-
-
+      pdf.save(`comptabilite-${date}.pdf`)
+    }
   },
 
   mounted() {
@@ -268,6 +212,7 @@ export default {
   margin-bottom: 16px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, .07);
 }
+
 .search-box {
   display: flex;
   gap: 10px;
@@ -281,6 +226,7 @@ export default {
   border-radius: 10px;
   border: 1px solid #ccc;
 }
+
 .day-header {
   display: flex;
   justify-content: space-between;
