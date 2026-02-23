@@ -38,11 +38,11 @@
 
       <!-- ================= FOOTER ================= -->
       <div class="day-footer">
-  <div>📦 Total sorties : {{ day.totalSorties }} FCFA</div>
-  <div>✔ Soldé : {{ day.solded }} FCFA</div>
-  <div>🟡 Non soldé : {{ day.non_solded }} FCFA</div>
-  <div>❌ Dette : {{ day.debt }} FCFA</div>
-  <div>💰 Encaissements du jour : {{ day.encaissements }} FCFA</div>
+  <div>📦: {{ day.totalSorties }} FCFA</div>
+  <div>✔: {{ day.solded }} FCFA</div>
+  <div>🟡: {{ day.non_solded }} FCFA</div>
+  <div>❌: {{ day.debt }} FCFA</div>
+  <div>💰: {{ day.encaissements }} FCFA</div>
 </div>
 
       <!-- ================= EXPORT ================= -->
@@ -301,7 +301,7 @@ export default {
 }
 
 .day-footer {
-  display: flex;
+  display: block;
   justify-content: space-between;
   margin-top: 10px;
   font-weight: 600;

@@ -58,12 +58,7 @@
       <h3>📦 État du matériel</h3>
 
       <div class="material-table">
-        <div
-          v-for="p in products"
-          :key="p.id"
-          class="material-row"
-          :class="p.status"
-        >
+        <div v-for="p in products" :key="p.id" class="material-row" :class="p.status">
           <div>
             <strong>{{ p.name }}-{{ p.numberApp }}</strong>
             <small>{{ p.price }} FCFA / jour</small>
@@ -98,17 +93,36 @@ export default {
 
   computed: {
     finance() {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+
+      const tomorrow = new Date(today)
+      tomorrow.setDate(today.getDate() + 1)
+
+      // 💰 Encaissements basés sur soldedAt
       const encaisse = this.rentals
-        .filter(r => r.paymentStatus === "soldé")
+        .filter(r =>
+          r.paymentStatus === "soldé" &&
+          r.soldedAt?.seconds &&
+          new Date(r.soldedAt.seconds * 1000) >= today &&
+          new Date(r.soldedAt.seconds * 1000) < tomorrow
+        )
         .reduce((s, r) => s + r.total, 0)
 
-      const dettes = this.rentals
+      // 📤 Toutes les sorties créées aujourd’hui
+      const sortiesDuJour = this.rentals.filter(r =>
+        r.createdAt?.seconds &&
+        new Date(r.createdAt.seconds * 1000) >= today &&
+        new Date(r.createdAt.seconds * 1000) < tomorrow
+      )
+
+      const dettes = sortiesDuJour
         .filter(r => r.paymentStatus === "dette")
         .reduce((s, r) => s + r.total, 0)
 
-      const nonSolde = this.rentals.filter(
-        r => r.paymentStatus === "NonSoldé"
-      ).length
+      const nonSolde = sortiesDuJour
+        .filter(r => r.paymentStatus === "NonSoldé")
+        .reduce((s, r) => s + r.total, 0)
 
       return { encaisse, dettes, nonSolde }
     },
@@ -125,20 +139,22 @@ export default {
       )
     },
 
-    mostRented() {
-      const map = {}
+   mostRented() {
+  const map = {}
 
-      this.rentals.forEach(r => {
-        r.items.forEach(i => {
-          map[i.productName] = (map[i.productName] || 0) + 1
-        })
-      })
+  this.rentals.forEach(r => {
+    r.items?.forEach(i => {
+      const name = i.productName || i.name || "Inconnu"
 
-      return Object.entries(map)
-        .map(([name, count]) => ({ name, count }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 5)
-    }
+      map[name] = (map[name] || 0) + 1
+    })
+  })
+
+  return Object.entries(map)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5)
+}
   },
 
   methods: {
@@ -195,7 +211,7 @@ export default {
   padding: 14px;
   border-radius: 14px;
   text-align: center;
-  box-shadow: 0 4px 10px rgba(0,0,0,.08);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, .08);
 }
 
 .stat-card strong {
@@ -203,9 +219,17 @@ export default {
   display: block;
 }
 
-.green { border-top: 6px solid #22c55e; }
-.yellow { border-top: 6px solid #facc15; }
-.red { border-top: 6px solid #ef4444; }
+.green {
+  border-top: 6px solid #22c55e;
+}
+
+.yellow {
+  border-top: 6px solid #facc15;
+}
+
+.red {
+  border-top: 6px solid #ef4444;
+}
 
 /* ===== ALERTES ===== */
 .alert-row {
@@ -248,9 +272,17 @@ export default {
   border-radius: 12px;
 }
 
-.material-row.disponible { border-left: 6px solid #22c55e; }
-.material-row.reserve { border-left: 6px solid #facc15; }
-.material-row.sortie { border-left: 6px solid #ef4444; }
+.material-row.disponible {
+  border-left: 6px solid #22c55e;
+}
+
+.material-row.reserve {
+  border-left: 6px solid #facc15;
+}
+
+.material-row.sortie {
+  border-left: 6px solid #ef4444;
+}
 
 /* ===== BADGES ===== */
 .badge {
@@ -260,9 +292,20 @@ export default {
   font-weight: 600;
 }
 
-.badge.paid { background: #22c55e; color: white; }
-.badge.pending { background: #facc15; color: #333; }
-.badge.debt { background: #ef4444; color: white; }
+.badge.paid {
+  background: #22c55e;
+  color: white;
+}
+
+.badge.pending {
+  background: #facc15;
+  color: #333;
+}
+
+.badge.debt {
+  background: #ef4444;
+  color: white;
+}
 
 /* ===== INFO ===== */
 .info {

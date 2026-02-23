@@ -11,7 +11,7 @@
         </option>
       </select>
 
-      <input type="text" v-model="searchProduct" placeholder="🔎 Rechercher appareil..." />
+      <input style="padding: 10px 0px!important;" type="text" v-model="searchProduct" placeholder="🔎 Rechercher appareil..." />
 
       <select v-model="selectedProductId">
         <option disabled value="">-- Produit --</option>
@@ -20,7 +20,7 @@
           {{ p.name }} - {{ p.numberApp }} ({{ p.price }} FCFA)
         </option>
       </select>
-      <input type="text" v-model="searchAccessoir" placeholder="🔎 Rechercher accessoire..." />
+      <input style="padding: 10px 0px!important;" type="text" v-model="searchAccessoir" placeholder="🔎 Rechercher accessoire..." />
 
       <select v-model="selectedAccessoirId">
         <option disabled value="">-- Accessoire --</option>
