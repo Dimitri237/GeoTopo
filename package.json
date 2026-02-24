@@ -30,6 +30,7 @@
     "stream-browserify": "^3.0.0",
     "swiper": "^11.0.6",
     "v-viewer": "^3.0.13",
+    "vite-plugin-pwa": "^1.2.0",
     "vue": "^3.4.15",
     "vue-carousel": "^0.18.0",
     "vue-carrousel": "^1.0.5",
